@@ -1,0 +1,17 @@
+{
+  "label": {
+    "colours": {
+      "dark_bg": "#1e1e1e"
+    },
+    "font": {
+      "name": "fira_code",
+      "size": "14"
+    }
+  },
+  "#algo_selection": {
+    "font": {
+      "name": "fira_code",
+      "size": "16"
+    }
+  }
+}

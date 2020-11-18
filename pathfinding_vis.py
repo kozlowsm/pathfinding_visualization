@@ -15,6 +15,11 @@ ORANGE = (255, 165, 0)
 GREY = (128, 128, 128)
 TURQOISE = (64, 224, 208)
 
+DARK_BLUE = (54, 86, 115)
+# DARK_BLUE = (14, 111, 201)
+# DARK_BLUE = (11, 87, 158)
+LIGHT_BLUE = (112, 187, 255)
+
 
 class Node:
     def __init__(self, row, col, width, total_rows):
@@ -32,40 +37,43 @@ class Node:
         return self.row, self.col
 
     def is_closed(self):
-        return self.color == RED
+        return self.color == DARK_BLUE
 
     def is_open(self):
-        return self.color == GREEN
+        return self.color == LIGHT_BLUE
 
     def is_barrier(self):
         return self.color == BLACK
 
     def is_start(self):
-        return self.color == ORANGE
+        return self.color == GREEN
 
     def is_end(self):
-        return self.color == TURQOISE
+        return self.color == RED
+
+    def is_path(self):
+        return self.color == YELLOW
 
     def reset(self):
         self.color = WHITE
 
     def make_start(self):
-        self.color = ORANGE
+        self.color = GREEN
 
     def make_closed(self):
-        self.color = RED
+        self.color = DARK_BLUE
 
     def make_open(self):
-        self.color = GREEN
+        self.color = LIGHT_BLUE
 
     def make_barrier(self):
         self.color = BLACK
 
     def make_end(self):
-        self.color = TURQOISE
+        self.color = RED
 
     def make_path(self):
-        self.color = PURPLE
+        self.color = YELLOW
 
     def draw(self, win):
         pygame.draw.rect(
@@ -131,9 +139,9 @@ class Grid:
     def draw_grid(self, win_surface):
         gap = self.width // self.rows
         for i in range(self.rows):
-            pygame.draw.line(win_surface, GREY, (0, i*gap),
+            pygame.draw.line(win_surface, BLACK, (0, i*gap),
                              (self.width, i*gap))
-            pygame.draw.line(win_surface, GREY, (i*gap, 0),
+            pygame.draw.line(win_surface, BLACK, (i*gap, 0),
                              (i*gap, self.width))
 
     # Draws nodes and lines to the screen
@@ -172,6 +180,14 @@ class Grid:
                     node.reset()
         self.grid = grid_copy
 
+    def clear_searched(self):
+        grid_copy = self.grid[:]
+        for row in grid_copy:
+            for node in row:
+                if node.is_open() or node.is_closed() or node.is_path():
+                    node.reset()
+        self.grid = grid_copy
+
     # Generate a random grid pattern
     def randomize_grid(self, percent_full):
         self.start = None
@@ -187,14 +203,14 @@ class Grid:
         if isinstance(came_from, list):
             for node in came_from:
                 node.make_path()
-                pygame.time.delay(25)
+                pygame.time.delay(5)
                 self.draw(win_surface)
         else:
             current = self.end
             while current in came_from:
                 current = came_from[current]
                 current.make_path()
-                pygame.time.delay(25)
+                pygame.time.delay(5)
                 self.draw(win_surface)
 
     def get_path_len(self, came_from):
@@ -246,6 +262,7 @@ class Grid:
             open_set_hash.remove(current)
 
             if current == self.end:
+                self.end.make_end()
                 self.reconstruct_path(came_from, win_surface)
                 self.end.make_end()
                 self.start.make_start()
@@ -291,6 +308,7 @@ class Grid:
             open_set_hash.remove(current)
 
             if current == self.end:
+                self.end.make_end()
                 self.reconstruct_path(came_from, win_surface)
                 self.end.make_end()
                 self.start.make_start()
@@ -335,6 +353,7 @@ class Grid:
             open_set_hash.remove(current)
 
             if current == self.end:
+                self.end.make_end()
                 self.reconstruct_path(came_from, win_surface)
                 self.end.make_end()
                 self.start.make_start()
@@ -381,13 +400,16 @@ class Grid:
                     stack.append(new_path)
                     neighbor.make_open()
                     if neighbor == self.end:
+                        self.end.make_end()
+                        self.start.make_start()
                         self.reconstruct_path(new_path, win_surface)
                         self.start.make_start()
                         self.end.make_end()
                         return new_path
 
             explored[node] = True
-            node.make_closed()
+            if node != self.start and node != self.end:
+                node.make_closed()
             draw()
 
         return {}
@@ -413,13 +435,15 @@ class Grid:
                     queue.append(new_path)
                     neighbor.make_open()
                     if neighbor == self.end:
+                        self.end.make_end()
                         self.reconstruct_path(new_path, win_surface)
                         self.start.make_start()
                         self.end.make_end()
                         return new_path
 
             explored[node] = True
-            node.make_closed()
+            if node != self.start and node != self.end:
+                node.make_closed()
             draw()
 
         return {}
@@ -438,7 +462,8 @@ class VisualizerApp:
         self.flags = pygame.SCALED
         self.window_surface = pygame.display.set_mode(
             (self.width, self.height))
-        self.manager = pygame_gui.UIManager((self.width, self.height))
+        self.manager = pygame_gui.UIManager(
+            (self.width, self.height), 'theme.json')
 
         self.grid_rect = pygame.draw.rect(
             self.window_surface, (0, 0, 0), pygame.Rect((0, 0), (600, 600)))
@@ -446,25 +471,31 @@ class VisualizerApp:
             self.window_surface, (30, 30, 30), pygame.Rect((600, 0), (300, 600)))
 
         # Menu buttons
+        self.algo_selection_text = pygame_gui.elements.ui_label.UILabel(
+            pygame.Rect(650, 10, 200, 50), "Select Algorithm: ", manager=self.manager, object_id="#algo_selection")
         self.run_button = pygame_gui.elements.UIButton(relative_rect=pygame.Rect(
-            (800, 20), (50, 50)), text='Run', manager=self.manager)
+            (800, 50), (50, 50)), text='Run', manager=self.manager)
         self.clear_all_button = pygame_gui.elements.UIButton(relative_rect=pygame.Rect(
-            (650, 75), (100, 50)), text='Clear All', manager=self.manager)
+            (650, 150), (100, 50)), text='Clear All', manager=self.manager)
         self.clear_paths_button = pygame_gui.elements.UIButton(relative_rect=pygame.Rect(
-            (750, 75), (100, 50)), text='Clear Paths', manager=self.manager)
+            (750, 150), (100, 50)), text='Clear Nodes', manager=self.manager)
+        self.clear_searched_button = pygame_gui.elements.UIButton(relative_rect=pygame.Rect(
+            (675, 200), (150, 50)), text="Clear Searched", manager=self.manager)
         self.randomize_grid_button = pygame_gui.elements.UIButton(relative_rect=pygame.Rect(
-            (675, 175), (150, 50)), text='Randomize Grid', manager=self.manager)
+            (675, 500), (150, 50)), text='Randomize Grid', manager=self.manager)
         self.path_len_text = pygame_gui.elements.ui_label.UILabel(
-            pygame.Rect(675, 250, 150, 50), "Path Length: 0", manager=self.manager)
+            pygame.Rect(650, 285, 200, 30), "Path Length: 0", manager=self.manager)
         self.total_time_text = pygame_gui.elements.ui_label.UILabel(
-            pygame.Rect(675, 310, 150, 50), "Total Time: 0.00", manager=self.manager)
+            pygame.Rect(650, 315, 200, 30), "Total Time (s): 0.00", manager=self.manager)
+        self.no_path_text = pygame_gui.elements.ui_label.UILabel(
+            pygame.Rect(650, 340, 200, 50), "", manager=self.manager, object_id="#no_path")
 
         # Dropdown menu and options
         self.algo_options = ['A*', 'BFS', 'DFS', 'DIJKSTRA', 'GREEDY-BEST']
         self.selection = self.algo_options[0]
         # Create the button for dropdown
         self.algo_dropdown_button = pygame_gui.elements.UIDropDownMenu(options_list=self.algo_options, starting_option=self.selection,
-                                                                       relative_rect=pygame.Rect((650, 20), (150, 50)), manager=self.manager)
+                                                                       relative_rect=pygame.Rect((650, 50), (150, 50)), manager=self.manager)
 
         self.grid_system = Grid(rows, self.height)
 
@@ -525,12 +556,18 @@ class VisualizerApp:
                             self.path_len_text.set_text(
                                 f"Path Length: {self.grid_system.path_len}")
                             self.total_time_text.set_text(
-                                f"Total Time: {end_time - start_time:.3f}")
-                            print('time: ' + str(end_time - start_time))
+                                f"Total Time (s): {end_time - start_time:.3f}")
+                            if self.grid_system.path_len == 0:
+                                self.no_path_text.set_text(
+                                    "Path does not exist")
+                            else:
+                                self.no_path_text.set_text("")
                         if event.ui_element == self.clear_all_button:
                             self.grid_system.clear_all()
                         if event.ui_element == self.clear_paths_button:
                             self.grid_system.clear_paths()
+                        if event.ui_element == self.clear_searched_button:
+                            self.grid_system.clear_searched()
                         if event.ui_element == self.randomize_grid_button:
                             self.grid_system.randomize_grid(.35)
 
@@ -542,7 +579,7 @@ class VisualizerApp:
                              pygame.Rect((600, 0), (300, 600)))
             self.manager.update(time_delta)
             pygame.draw.line(self.window_surface, (90, 90, 90),
-                             (600, 150), (900, 150), width=3)
+                             (600, 120), (900, 120), width=3)
 
             self.manager.draw_ui(self.window_surface)
 
