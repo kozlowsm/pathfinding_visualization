@@ -99,16 +99,16 @@ class Node:
         self.prim_neighbors = []
         # UP
         if self.row > 0 and not grid[self.row-2][self.col].is_barrier():
-            self.neighbors.append(grid[self.row-2][self.col])
+            self.prim_neighbors.append(grid[self.row-2][self.col])
         # DOWN
         if self.row < self.total_rows - 2 and not grid[self.row+2][self.col].is_barrier():
-            self.neighbors.append(grid[self.row+2][self.col])
+            self.prim_neighbors.append(grid[self.row+2][self.col])
         # LEFT
         if self.col > 0 and not grid[self.row][self.col-2].is_barrier():
-            self.neighbors.append(grid[self.row][self.col-2])
+            self.prim_neighbors.append(grid[self.row][self.col-2])
         # RIGHT
         if self.col < self.total_rows - 2 and not grid[self.row][self.col+2].is_barrier():
-            self.neighbors.append(grid[self.row][self.col+2])
+            self.prim_neighbors.append(grid[self.row][self.col+2])
 
 
 class Grid:
@@ -448,11 +448,20 @@ class Grid:
 
         return {}
 
+    def prims_maze(self, draw=None, win_surface=None):
+        grid_copy = self.grid[:]
+        # Make every node
+        for row in grid_copy:
+            for node in row:
+                node.make_barrier()
+
+        self.grid = grid_copy
+
 
 class VisualizerApp:
     def __init__(self, rows, height):
         pygame.init()
-        pygame.display.set_caption('Pathfinding Algorithms')
+        pygame.display.set_caption('Pathfinding Algorithms Visualizer')
 
         self.rows = rows
         self.height = height
@@ -542,9 +551,12 @@ class VisualizerApp:
                 if event.type == pygame.USEREVENT:
                     if event.user_type == pygame_gui.UI_BUTTON_PRESSED:
                         if event.ui_element == self.run_button and self.grid_system.start and self.grid_system.end:
+                            self.manager.root_container.disable()
                             for row in self.grid_system.grid:
                                 for node in row:
                                     node.update_neighbors(
+                                        self.grid_system.grid)
+                                    node.update_prim_neighbors(
                                         self.grid_system.grid)
                             algorithm = self.grid_system.get_algorithm(
                                 self.selection)
@@ -562,6 +574,7 @@ class VisualizerApp:
                                     "Path does not exist")
                             else:
                                 self.no_path_text.set_text("")
+                            self.manager.root_container.enable()
                         if event.ui_element == self.clear_all_button:
                             self.grid_system.clear_all()
                         if event.ui_element == self.clear_paths_button:
@@ -569,7 +582,8 @@ class VisualizerApp:
                         if event.ui_element == self.clear_searched_button:
                             self.grid_system.clear_searched()
                         if event.ui_element == self.randomize_grid_button:
-                            self.grid_system.randomize_grid(.35)
+                            # self.grid_system.randomize_grid(.35)
+                            self.grid_system.prims_maze()
 
                     if event.user_type == pygame_gui.UI_DROP_DOWN_MENU_CHANGED:
                         self.selection = event.text
